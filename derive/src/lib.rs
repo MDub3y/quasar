@@ -488,7 +488,7 @@ pub fn instruction(attr: TokenStream, item: TokenStream) -> TokenStream {
         ));
 
         new_stmts.push(syn::parse_quote!(
-            let __instruction_data = unsafe { &*(#param_ident.data.as_ptr() as *const InstructionData) };
+            let __instruction_data = unsafe { core::ptr::read_unaligned(#param_ident.data.as_ptr() as *const InstructionData) };
         ));
 
         for name in &field_names {
@@ -515,18 +515,39 @@ pub fn account(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let disc_indices: Vec<usize> = (0..disc_len).collect();
 
-    let field_types: Vec<_> = match &input.data {
+    let fields_data = match &input.data {
         Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => fields.named.iter().map(|f| &f.ty).collect(),
+            Fields::Named(fields) => &fields.named,
             _ => panic!("#[account] can only be used on structs with named fields"),
         },
         _ => panic!("#[account] can only be used on structs"),
     };
 
+    let field_types: Vec<_> = fields_data.iter().map(|f| &f.ty).collect();
+
+    let zc_name = format_ident!("{}Zc", name);
+    let zc_fields: Vec<proc_macro2::TokenStream> = fields_data.iter().map(|f| {
+        let fname = &f.ident;
+        let vis = &f.vis;
+        let zc_ty = map_to_pod_type(&f.ty);
+        quote! { #vis #fname: #zc_ty }
+    }).collect();
+
     quote! {
         #[repr(C)]
         #[derive(::wincode::SchemaRead, ::wincode::SchemaWrite)]
         #input
+
+        #[repr(C)]
+        #[derive(Copy, Clone)]
+        pub struct #zc_name {
+            #(#zc_fields,)*
+        }
+
+        const _: () = assert!(
+            core::mem::align_of::<#zc_name>() == 1,
+            "ZC companion struct must have alignment 1; all fields must use Pod types or alignment-1 types"
+        );
 
         impl Discriminator for #name {
             const DISCRIMINATOR: &'static [u8] = &[#(#disc_bytes),*];
@@ -544,6 +565,9 @@ pub fn account(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[inline(always)]
             fn check(view: &AccountView) -> Result<(), ProgramError> {
                 let __data = unsafe { view.borrow_unchecked() };
+                if __data.len() < #disc_len + core::mem::size_of::<#zc_name>() {
+                    return Err(ProgramError::AccountDataTooSmall);
+                }
                 #(
                     if unsafe { *__data.get_unchecked(#disc_indices) } != #disc_bytes {
                         return Err(ProgramError::InvalidAccountData);
@@ -551,6 +575,11 @@ pub fn account(attr: TokenStream, item: TokenStream) -> TokenStream {
                 )*
                 Ok(())
             }
+        }
+
+        impl ZeroCopyDeref for #name {
+            type Target = #zc_name;
+            const DATA_OFFSET: usize = Self::DISCRIMINATOR.len();
         }
 
         impl QuasarAccount for #name {
@@ -602,6 +631,27 @@ pub fn account(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
     }.into()
+}
+
+fn map_to_pod_type(ty: &Type) -> proc_macro2::TokenStream {
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            let ident_str = seg.ident.to_string();
+            return match ident_str.as_str() {
+                "u128" => quote! { quasar_core::pod::PodU128 },
+                "u64" => quote! { quasar_core::pod::PodU64 },
+                "u32" => quote! { quasar_core::pod::PodU32 },
+                "u16" => quote! { quasar_core::pod::PodU16 },
+                "i128" => quote! { quasar_core::pod::PodI128 },
+                "i64" => quote! { quasar_core::pod::PodI64 },
+                "i32" => quote! { quasar_core::pod::PodI32 },
+                "i16" => quote! { quasar_core::pod::PodI16 },
+                "bool" => quote! { quasar_core::pod::PodBool },
+                _ => quote! { #ty },
+            };
+        }
+    }
+    quote! { #ty }
 }
 
 // --- Program macro ---

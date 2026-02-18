@@ -40,11 +40,7 @@ impl Owner for TokenAccount {
 
 impl ZeroCopyDeref for TokenAccount {
     type Target = TokenAccountState;
-
-    #[inline(always)]
-    unsafe fn deref_data(ptr: *const u8) -> *const TokenAccountState {
-        ptr as *const TokenAccountState
-    }
+    const DATA_OFFSET: usize = 0;
 }
 
 // --- CPI Methods ---
