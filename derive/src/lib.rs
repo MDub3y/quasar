@@ -767,7 +767,7 @@ fn extract_ctx_inner_type(sig: &syn::Signature) -> proc_macro2::TokenStream {
 pub fn program(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut module = parse_macro_input!(item as ItemMod);
     let mod_name = module.ident.clone();
-    let program_type_name = format_ident!("{}", snake_to_pascal(&mod_name.to_string()));
+    let program_type_name = format_ident!("{}Program", snake_to_pascal(&mod_name.to_string()));
 
     let (_, items) = module.content
         .as_ref()

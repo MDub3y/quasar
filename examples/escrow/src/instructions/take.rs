@@ -2,7 +2,7 @@ use quasar_core::prelude::*;
 use quasar_spl::{TokenAccount, TokenProgram};
 
 use crate::state::{EscrowAccount, EscrowTaken};
-use crate::QuasarEscrow;
+use crate::QuasarEscrowProgram;
 
 #[derive(Accounts)]
 pub struct Take<'info> {
@@ -23,7 +23,7 @@ pub struct Take<'info> {
     pub token_program: &'info TokenProgram,
     #[account(seeds = [b"__event_authority"], bump)]
     pub event_authority: &'info UncheckedAccount,
-    pub program: &'info QuasarEscrow,
+    pub program: &'info QuasarEscrowProgram,
 }
 
 impl<'info> Take<'info> {
