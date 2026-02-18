@@ -14,6 +14,7 @@ pub mod cpi;
 pub mod pda;
 pub mod traits;
 pub mod checks;
+pub mod pod;
 pub mod accounts;
 pub mod context;
 pub mod entrypoint;
