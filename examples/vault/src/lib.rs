@@ -1,9 +1,5 @@
 #![no_std]
 
-#[cfg(feature = "client")]
-extern crate alloc;
-#[cfg(feature = "client")]
-pub mod client;
 use quasar_core::prelude::*;
 
 mod instructions;
@@ -24,6 +20,6 @@ mod quasar_vault {
 
     #[instruction(discriminator = 1)]
     pub fn withdraw(ctx: Ctx<Withdraw>, amount: u64) -> Result<(), ProgramError> {
-        ctx.accounts.withdraw(amount, &ctx.bumps)
+        ctx.accounts.withdraw(amount)
     }
 }
