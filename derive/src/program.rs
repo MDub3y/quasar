@@ -262,9 +262,7 @@ pub(crate) fn program(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #(#client_items)*
             }
         })
-        .unwrap_or_else(|e| {
-            syn::Item::Verbatim(e.to_compile_error())
-        });
+        .unwrap_or_else(|e| syn::Item::Verbatim(e.to_compile_error()));
         items.push(client_mod);
     }
 

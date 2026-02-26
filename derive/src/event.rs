@@ -21,7 +21,12 @@ fn event_field_size(ty: &Type) -> syn::Result<usize> {
     Err(syn::Error::new_spanned(ty, "unsupported event field type"))
 }
 
-fn event_field_write(name: &Ident, ty: &Type, offset: usize, size: usize) -> proc_macro2::TokenStream {
+fn event_field_write(
+    name: &Ident,
+    ty: &Type,
+    offset: usize,
+    size: usize,
+) -> proc_macro2::TokenStream {
     let end = offset + size;
     if let Type::Path(type_path) = ty {
         if let Some(seg) = type_path.path.segments.last() {

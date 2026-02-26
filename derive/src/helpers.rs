@@ -53,9 +53,8 @@ pub(crate) fn parse_discriminator_bytes(disc_bytes: &[LitInt]) -> syn::Result<Ve
     disc_bytes
         .iter()
         .map(|lit| {
-            lit.base10_parse::<u8>().map_err(|_| {
-                syn::Error::new_spanned(lit, "discriminator byte must be 0-255")
-            })
+            lit.base10_parse::<u8>()
+                .map_err(|_| syn::Error::new_spanned(lit, "discriminator byte must be 0-255"))
         })
         .collect()
 }
