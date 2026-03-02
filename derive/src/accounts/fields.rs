@@ -799,9 +799,11 @@ pub(super) fn process_fields(
 
         // --- Non-init ATA address validation ---
 
-        if !is_init_field && attrs.associated_token_mint.is_some() {
-            let mint_field = attrs.associated_token_mint.as_ref().unwrap();
-            let auth_field = attrs.associated_token_authority.as_ref().unwrap();
+        if let (false, Some(mint_field), Some(auth_field)) = (
+            is_init_field,
+            attrs.associated_token_mint.as_ref(),
+            attrs.associated_token_authority.as_ref(),
+        ) {
             let token_program_addr = if let Some(tp) = &attrs.associated_token_token_program {
                 quote! { #tp.to_account_view().address() }
             } else {
