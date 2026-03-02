@@ -18,7 +18,7 @@ impl AccountBuffer {
     fn new(data_len: usize) -> Self {
         let byte_len =
             size_of::<RuntimeAccount>() + data_len + MAX_PERMITTED_DATA_INCREASE + size_of::<u64>();
-        let u64_count = (byte_len + 7) / 8;
+        let u64_count = byte_len.div_ceil(8);
         Self {
             inner: vec![0; u64_count],
         }
