@@ -6,6 +6,7 @@ use {
 pub fn run_instruction(name: &str) -> CliResult {
     let snake = name.replace('-', "_");
     let instructions_dir = Path::new("src").join("instructions");
+    let lib_path = Path::new("src").join("lib.rs");
 
     if !instructions_dir.exists() {
         eprintln!(
@@ -47,12 +48,24 @@ impl<'info> {pascal}<'info> {{
 
     // Update mod.rs
     let mod_path = instructions_dir.join("mod.rs");
-    let existing = fs::read_to_string(&mod_path).unwrap_or_default();
+    let existing_mod = fs::read_to_string(&mod_path).unwrap_or_default();
 
-    if !existing.contains(&format!("mod {snake};")) {
+    if !existing_mod.contains(&format!("mod {snake};")) {
         let new_line = format!("mod {snake};\npub use {snake}::*;\n");
-        let updated = format!("{existing}{new_line}");
+        let updated = format!("{existing_mod}{new_line}");
         fs::write(&mod_path, updated).map_err(anyhow::Error::from)?;
+    }
+
+    // Update lib.rs — add instruction to #[program] block
+    if lib_path.exists() {
+        let lib_content = fs::read_to_string(&lib_path).map_err(anyhow::Error::from)?;
+        if let Some(updated) = add_instruction_to_entrypoint(&lib_content, &snake, &pascal) {
+            fs::write(&lib_path, updated).map_err(anyhow::Error::from)?;
+            println!(
+                "  {} src/lib.rs",
+                style::success("updated")
+            );
+        }
     }
 
     println!(
@@ -65,6 +78,82 @@ impl<'info> {pascal}<'info> {{
     );
 
     Ok(())
+}
+
+/// Find the highest discriminator in the #[program] block and insert
+/// a new #[instruction] entry with discriminator = max + 1.
+fn add_instruction_to_entrypoint(lib_content: &str, snake: &str, pascal: &str) -> Option<String> {
+    // Find the highest existing discriminator
+    let mut max_disc: i64 = -1;
+    for line in lib_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("#[instruction(discriminator") {
+            if let Some(start) = trimmed.find("= ") {
+                if let Some(end) = trimmed[start + 2..].find(')') {
+                    if let Ok(n) = trimmed[start + 2..start + 2 + end].trim().parse::<i64>() {
+                        if n > max_disc {
+                            max_disc = n;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let next_disc = (max_disc + 1) as u64;
+
+    // Find the closing `}}` of the #[program] mod block.
+    // Strategy: find the last `}` that closes the program module.
+    // We look for the pattern: a line with just `}` or `}}` that ends the mod block.
+    // The program block ends with a `}` at indent level 0 after `#[program]`.
+    let mut in_program = false;
+    let mut program_brace_depth = 0;
+    let mut insert_pos = None;
+
+    let mut pos = 0;
+    for line in lib_content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("#[program]") {
+            in_program = true;
+        }
+
+        if in_program {
+            for ch in trimmed.chars() {
+                if ch == '{' {
+                    program_brace_depth += 1;
+                } else if ch == '}' {
+                    program_brace_depth -= 1;
+                    if program_brace_depth == 0 {
+                        // This `}` closes the program mod — insert before this line
+                        insert_pos = Some(pos);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if insert_pos.is_some() {
+            break;
+        }
+
+        pos += line.len() + 1; // +1 for newline
+    }
+
+    let insert_pos = insert_pos?;
+
+    let new_entry = format!(
+        "\n    #[instruction(discriminator = {next_disc})]\n    \
+         pub fn {snake}(ctx: Ctx<{pascal}>) -> Result<(), ProgramError> {{\n        \
+         ctx.accounts.{snake}()\n    \
+         }}\n"
+    );
+
+    let mut result = String::with_capacity(lib_content.len() + new_entry.len());
+    result.push_str(&lib_content[..insert_pos]);
+    result.push_str(&new_entry);
+    result.push_str(&lib_content[insert_pos..]);
+    Some(result)
 }
 
 fn snake_to_pascal(s: &str) -> String {
