@@ -12,6 +12,7 @@ pub mod dump;
 pub mod error;
 pub mod idl;
 pub mod init;
+pub mod new;
 pub mod style;
 pub mod test;
 pub mod toolchain;
@@ -33,6 +34,8 @@ pub struct Cli {
 pub enum Command {
     /// Scaffold a new Quasar project
     Init(InitCommand),
+    /// Generate boilerplate (instructions, state, etc.)
+    New(NewCommand),
     /// Compile the on-chain program
     Build(BuildCommand),
     /// Run the test suite
@@ -82,6 +85,22 @@ pub struct InitCommand {
     /// Toolchain (solana, upstream)
     #[arg(long)]
     pub toolchain: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct NewCommand {
+    #[command(subcommand)]
+    pub what: NewWhat,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum NewWhat {
+    /// Scaffold a new instruction handler
+    Instruction {
+        /// Instruction name (snake_case)
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
 }
 
 #[derive(Args, Debug, Default)]
@@ -220,6 +239,9 @@ pub struct CompletionsCommand {
 pub fn run(cli: Cli) -> CliResult {
     match cli.command {
         Command::Init(cmd) => init::run(cmd.name, cmd.yes, cmd.no_git, cmd.framework, cmd.template, cmd.toolchain),
+        Command::New(cmd) => match cmd.what {
+            NewWhat::Instruction { name } => new::run_instruction(&name),
+        },
         Command::Build(cmd) => build::run(cmd.debug, cmd.watch, cmd.features),
         Command::Test(cmd) => test::run(cmd.debug, cmd.filter, cmd.watch, cmd.no_build),
         Command::Deploy(cmd) => deploy::run(cmd.program_keypair, cmd.upgrade_authority),
@@ -286,6 +308,7 @@ pub fn print_help() {
     println!();
     println!("  {}", style::bold("Commands:"));
     print_cmd("init   [name] [-y] [--no-git]", "Scaffold a new project");
+    print_cmd("new    instruction <name>", "Generate a new instruction");
     print_cmd(
         "build  [--debug] [--watch] [--features]",
         "Compile the on-chain program",
