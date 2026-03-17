@@ -14,6 +14,4 @@ pub enum CliError {
     TomlSerError(#[from] toml::ser::Error),
     #[error("Anyhow error")]
     Anyhow(#[from] anyhow::Error),
-    #[error("Code generation formatting error")]
-    FmtError(#[from] std::fmt::Error),
 }
