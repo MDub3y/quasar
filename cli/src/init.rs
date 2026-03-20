@@ -473,22 +473,22 @@ pub fn run(
         .as_deref()
         .or(globals.defaults.framework.as_deref())
     {
-        Some("mollusk") => 1,
-        Some("quasarsvm-rust") => 2,
-        Some("quasarsvm-web3js") => 3,
-        Some("quasarsvm-kit") => 4,
+        Some("quasarsvm-rust") => 1,
+        Some("quasarsvm-web3js") => 2,
+        Some("quasarsvm-kit") => 3,
+        Some("mollusk") => 4,
         Some("none") => 0,
-        _ => 2,
+        _ => 1,
     };
     let framework_idx = if skip_prompts {
         framework_default
     } else {
         let framework_items = &[
             "None",
-            "Mollusk",
-            "QuasarSVM/Rust",
-            "QuasarSVM/Web3.js",
-            "QuasarSVM/Kit",
+            "Rust",
+            "TypeScript",
+            "Kit",
+            "Rust (Mollusk)",
         ];
         Select::with_theme(&theme)
             .with_prompt("Testing framework")
@@ -499,10 +499,10 @@ pub fn run(
     };
     let framework = match framework_idx {
         0 => Framework::None,
-        1 => Framework::Mollusk,
-        2 => Framework::QuasarSVMRust,
-        3 => Framework::QuasarSVMWeb3js,
-        _ => Framework::QuasarSVMKit,
+        1 => Framework::QuasarSVMRust,
+        2 => Framework::QuasarSVMWeb3js,
+        3 => Framework::QuasarSVMKit,
+        _ => Framework::Mollusk,
     };
 
     // Template
