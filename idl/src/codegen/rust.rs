@@ -15,6 +15,7 @@ version = "{version}"
 edition = "2021"
 
 [dependencies]
+quasar-lang = "0.0"
 solana-address = "2"
 solana-instruction = "3"
 "#,
@@ -42,6 +43,7 @@ pub fn generate_client(parsed: &ParsedProgram) -> String {
     } else {
         out.push_str("use std::vec;\n");
     }
+    out.push_str("use quasar_lang::prelude::QuasarSerialize;\n");
     out.push_str("use solana_address::Address;\n");
     out.push_str("use solana_instruction::{AccountMeta, Instruction};\n\n");
 
@@ -201,15 +203,94 @@ pub fn generate_client(parsed: &ParsedProgram) -> String {
         out.push_str("}\n\n");
     }
 
+    // --- Accounts ---
+    if !parsed.state_accounts.is_empty() {
+        // Account discriminator constants
+        for acc in &parsed.state_accounts {
+            let const_name = pascal_to_screaming_snake(&acc.name);
+            let disc_str = format_disc_list(&acc.discriminator);
+            writeln!(
+                out,
+                "pub const {}_ACCOUNT_DISCRIMINATOR: &[u8] = &[{}];",
+                const_name, disc_str
+            )
+            .expect("write to String");
+        }
+        out.push('\n');
+
+        // Account struct definitions (use original snake_case field names)
+        for acc in &parsed.state_accounts {
+            out.push_str("#[derive(Clone, Copy, QuasarSerialize)]\n#[repr(C)]\n");
+            writeln!(out, "pub struct {} {{", acc.name).expect("write to String");
+            for (field_name, field_ty) in &acc.fields {
+                writeln!(
+                    out,
+                    "    pub {}: {},",
+                    field_name,
+                    rust_field_type(&helpers::map_type_from_syn(field_ty))
+                )
+                .expect("write to String");
+            }
+            out.push_str("}\n\n");
+        }
+
+        // ProgramAccount enum
+        out.push_str("pub enum ProgramAccount {\n");
+        for acc in &parsed.state_accounts {
+            if acc.fields.is_empty() {
+                writeln!(out, "    {},", acc.name).expect("write to String");
+            } else {
+                writeln!(out, "    {}({}),", acc.name, acc.name).expect("write to String");
+            }
+        }
+        out.push_str("}\n\n");
+
+        // decode_account function
+        out.push_str("pub fn decode_account(data: &[u8]) -> Option<ProgramAccount> {\n");
+        for acc in &parsed.state_accounts {
+            let const_name = pascal_to_screaming_snake(&acc.name);
+            writeln!(
+                out,
+                "    if data.starts_with({}_ACCOUNT_DISCRIMINATOR) {{",
+                const_name
+            )
+            .expect("write to String");
+            if acc.fields.is_empty() {
+                writeln!(out, "        return Some(ProgramAccount::{});", acc.name)
+                    .expect("write to String");
+            } else {
+                writeln!(
+                    out,
+                    "        let data = &data[{}_ACCOUNT_DISCRIMINATOR.len()..];",
+                    const_name
+                )
+                .expect("write to String");
+                out.push_str("        let mut offset = 0usize;\n");
+                for (field_name, field_ty) in &acc.fields {
+                    out.push_str(&deserialize_field_expr(
+                        field_name,
+                        &helpers::map_type_from_syn(field_ty),
+                    ));
+                }
+                let field_names: Vec<&str> =
+                    acc.fields.iter().map(|(name, _)| name.as_str()).collect();
+                writeln!(
+                    out,
+                    "        return Some(ProgramAccount::{}({} {{ {} }}));",
+                    acc.name,
+                    acc.name,
+                    field_names.join(", ")
+                )
+                .expect("write to String");
+            }
+            out.push_str("    }\n");
+        }
+        out.push_str("    None\n");
+        out.push_str("}\n\n");
+    }
+
     // --- Events ---
     if !parsed.events.is_empty() {
-        // Build IDL type defs for events (to get field info)
-        let event_types: Vec<_> = parsed
-            .events
-            .iter()
-            .map(crate::parser::events::to_idl_type_def)
-            .collect();
-
         // Event discriminator constants
         for ev in &parsed.events {
             let const_name = pascal_to_screaming_snake(&ev.name);
@@ -223,15 +304,15 @@ pub fn generate_client(parsed: &ParsedProgram) -> String {
         }
         out.push('\n');
 
-        // Event struct definitions
-        for type_def in &event_types {
-            writeln!(out, "pub struct {} {{", type_def.name).expect("write to String");
-            for field in &type_def.ty.fields {
+        // Event struct definitions (use original snake_case field names)
+        for ev in &parsed.events {
+            writeln!(out, "pub struct {} {{", ev.name).expect("write to String");
+            for (field_name, field_ty) in &ev.fields {
                 writeln!(
                     out,
                     "    pub {}: {},",
-                    field.name,
-                    rust_field_type(&field.ty)
+                    field_name,
+                    rust_field_type(&helpers::map_type_from_syn(field_ty))
                 )
                 .expect("write to String");
             }
@@ -240,29 +321,27 @@ pub fn generate_client(parsed: &ParsedProgram) -> String {
 
         // Event enum
         out.push_str("pub enum ProgramEvent {\n");
-        for type_def in &event_types {
-            if type_def.ty.fields.is_empty() {
-                writeln!(out, "    {},", type_def.name).expect("write to String");
+        for ev in &parsed.events {
+            if ev.fields.is_empty() {
+                writeln!(out, "    {},", ev.name).expect("write to String");
             } else {
-                writeln!(out, "    {}({}),", type_def.name, type_def.name)
-                    .expect("write to String");
+                writeln!(out, "    {}({}),", ev.name, ev.name).expect("write to String");
             }
         }
         out.push_str("}\n\n");
 
         // decode_event function
         out.push_str("pub fn decode_event(data: &[u8]) -> Option<ProgramEvent> {\n");
-        for (i, ev) in parsed.events.iter().enumerate() {
+        for ev in &parsed.events {
             let const_name = pascal_to_screaming_snake(&ev.name);
-            let type_def = &event_types[i];
             writeln!(
                 out,
                 "    if data.starts_with({}_EVENT_DISCRIMINATOR) {{",
                 const_name
             )
             .expect("write to String");
-            if type_def.ty.fields.is_empty() {
-                writeln!(out, "        return Some(ProgramEvent::{});", type_def.name)
+            if ev.fields.is_empty() {
+                writeln!(out, "        return Some(ProgramEvent::{});", ev.name)
                     .expect("write to String");
             } else {
                 writeln!(
@@ -272,16 +351,19 @@ pub fn generate_client(parsed: &ParsedProgram) -> String {
                 )
                 .expect("write to String");
                 out.push_str("        let mut offset = 0usize;\n");
-                for field in &type_def.ty.fields {
-                    out.push_str(&deserialize_field_expr(&field.name, &field.ty));
+                for (field_name, field_ty) in &ev.fields {
+                    out.push_str(&deserialize_field_expr(
+                        field_name,
+                        &helpers::map_type_from_syn(field_ty),
+                    ));
                 }
                 let field_names: Vec<&str> =
-                    type_def.ty.fields.iter().map(|f| f.name.as_str()).collect();
+                    ev.fields.iter().map(|(name, _)| name.as_str()).collect();
                 writeln!(
                     out,
                     "        return Some(ProgramEvent::{}({} {{ {} }}));",
-                    type_def.name,
-                    type_def.name,
+                    ev.name,
+                    ev.name,
                     field_names.join(", ")
                 )
                 .expect("write to String");

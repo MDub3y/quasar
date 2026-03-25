@@ -99,7 +99,7 @@ pub(crate) fn derive_write_bytes(input: TokenStream) -> TokenStream {
         #[cfg(not(any(target_os = "solana", target_arch = "bpf")))]
         impl #impl_generics quasar_lang::client::WriteBytes for #name #ty_generics #where_clause {
             #[inline(always)]
-            fn write_bytes(&self, buf: &mut ::alloc::vec::Vec<u8>) {
+            fn write_bytes(&self, buf: &mut std::vec::Vec<u8>) {
                 #(#field_writes)*
             }
         }
