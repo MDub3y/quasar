@@ -5,7 +5,7 @@ pub struct InitMaxMultiSeeds<'info> {
     pub payer: &'info mut Signer,
     pub authority: &'info Signer,
     #[account(
-        init, 
+        init,
         payer = payer,
         // Max 15 seeds allowed + 1 bump seed , in total 16
         seeds = [

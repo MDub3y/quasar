@@ -871,7 +871,8 @@ pub(super) fn process_fields(
                 return Err(syn::Error::new_spanned(
                     field_name,
                     format!(
-                        "`{}` exceeds Solana's PDA seed limit: {} seeds provided, max is 16 including bump",
+                        "`{}` exceeds Solana's PDA seed limit: {} seeds provided, max is 16 \
+                         including bump",
                         field_name,
                         seed_slices.len()
                     ),
