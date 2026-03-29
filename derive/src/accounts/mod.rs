@@ -114,13 +114,23 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
     // --- Generate parse_steps (hybrid: per-field dup-aware or no-dup) ---
 
     let mut parse_steps: Vec<proc_macro2::TokenStream> = Vec::new();
-    let mut buf_offset = quote! { 0usize };
+    // Track buffer offset as a plain integer for non-composite structs (emits
+    // clean literals like `3usize` instead of `0usize + 1usize + 1usize + 1usize`,
+    // which avoids clippy::int_plus_one in generated code).
+    // For composite structs, fall back to expression trees since composite
+    // account counts aren't known at macro expansion time.
+    let mut buf_offset_num: usize = 0;
+    let mut buf_offset_expr: Option<proc_macro2::TokenStream> = if has_composites {
+        Some(quote! { 0usize })
+    } else {
+        None
+    };
 
     for (fi, ct) in composite_types.iter().enumerate() {
         if let Some(inner_ty) = ct {
             // Composite type - recursively call parse_accounts
             // (each inner type knows its own dup policy from its #[account(dup)] attribute)
-            let cur_offset = buf_offset.clone();
+            let cur_offset = buf_offset_expr.clone().unwrap();
 
             parse_steps.push(quote! {
                 {
@@ -137,13 +147,17 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
                 }
             });
 
-            buf_offset = quote! { #buf_offset + <#inner_ty as AccountCount>::COUNT };
+            buf_offset_expr = Some(quote! { #cur_offset + <#inner_ty as AccountCount>::COUNT });
         } else {
-            let cur_offset = buf_offset.clone();
+            let cur_offset = if let Some(ref expr) = buf_offset_expr {
+                expr.clone()
+            } else {
+                quote! { #buf_offset_num }
+            };
             let attrs = &pf.field_attrs[fi];
             let field = &fields[fi];
 
-            if attrs.dup && buf_offset.to_string() == "0usize" {
+            if attrs.dup && buf_offset_num == 0 && buf_offset_expr.is_none() {
                 return syn::Error::new_spanned(
                     field,
                     "first account (index 0) cannot be marked with #[account(dup)] - it can never \
@@ -158,7 +172,11 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
 
             let is_optional = extract_generic_inner_type(&field.ty, "Option").is_some();
             let field_name = field.ident.as_ref().unwrap();
-            let account_index = buf_offset.to_string();
+            let account_index = if let Some(ref expr) = buf_offset_expr {
+                expr.to_string()
+            } else {
+                buf_offset_num.to_string()
+            };
 
             if is_optional || attrs.dup {
                 // Dup-aware path: single masked u32 comparison replaces 2-3 separate flag
@@ -266,7 +284,10 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
                 });
             }
 
-            buf_offset = quote! { #buf_offset + 1usize };
+            buf_offset_num += 1;
+            if let Some(ref expr) = buf_offset_expr {
+                buf_offset_expr = Some(quote! { #expr + 1usize });
+            }
         }
     }
 

@@ -119,12 +119,43 @@ pub fn assign<'a>(account: &'a AccountView, owner: &'a Address) -> CpiCall<'a, 1
     )
 }
 
+/// Allocate space in an account without transferring ownership.
+///
+/// System program instruction index: 8
+///
+/// ### Accounts:
+///   0. `[WRITE, SIGNER]` Account to allocate
+///
+/// ### Instruction data (12 bytes):
+/// ```text
+/// [0..4 ] discriminator (8)
+/// [4..12] space          (u64, little-endian)
+/// ```
+#[inline(always)]
+pub fn allocate<'a>(account: &'a AccountView, space: u64) -> CpiCall<'a, 1, 12> {
+    // SAFETY: All 12 bytes written before `assume_init`.
+    let data = unsafe {
+        let mut buf = core::mem::MaybeUninit::<[u8; 12]>::uninit();
+        let ptr = buf.as_mut_ptr() as *mut u8;
+        core::ptr::copy_nonoverlapping(8u32.to_le_bytes().as_ptr(), ptr, 4);
+        core::ptr::copy_nonoverlapping(space.to_le_bytes().as_ptr(), ptr.add(4), 8);
+        buf.assume_init()
+    };
+
+    CpiCall::new(
+        &SYSTEM_PROGRAM_ID,
+        [InstructionAccount::writable_signer(account.address())],
+        [account],
+        data,
+    )
+}
+
 /// Initialize an account, handling both fresh and pre-funded cases.
 ///
 /// If the account has zero lamports (fresh), issues a single `CreateAccount`
 /// system CPI. If the account is pre-funded (e.g. someone sent SOL to the
 /// PDA address before initialization), uses `Transfer` (top up rent delta
-/// if needed) + `Assign` (change owner) + resize (allocate data space).
+/// if needed) + `Allocate` (set space) + `Assign` (change owner).
 ///
 /// This avoids the `CreateAccount` failure mode where the target account
 /// already has a non-zero lamport balance.
@@ -149,14 +180,19 @@ pub fn init_account(
     if account.lamports() == 0 {
         create_account(payer, account, lamports, space, owner).invoke_with_signers(signers)
     } else {
-        // Payer is a real signer (keypair), not a PDA — `.invoke()` is correct.
-        // Only `assign` needs `invoke_with_signers` (the *account* is the PDA).
+        // Pre-funded path: the account already has lamports (someone sent SOL
+        // to the PDA address). We can't use CreateAccount (it fails if the
+        // account has a non-zero balance), so we use three separate system
+        // program instructions:
+        //   1. Transfer — top up to rent-exempt minimum (skip if already enough)
+        //   2. Allocate — set data space (must happen while system-program-owned)
+        //   3. Assign  — transfer ownership to the target program
         let required = lamports.saturating_sub(account.lamports());
         if required > 0 {
             transfer(payer, account, required).invoke()?;
         }
-        assign(account, owner).invoke_with_signers(signers)?;
-        crate::accounts::account::resize(account, space as usize)
+        allocate(account, space).invoke_with_signers(signers)?;
+        assign(account, owner).invoke_with_signers(signers)
     }
 }
 

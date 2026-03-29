@@ -1,6 +1,6 @@
 use {
     crate::helpers::*,
-    quasar_svm::{Account, Instruction, ProgramError, Pubkey},
+    quasar_svm::{Account, Instruction, Pubkey},
     quasar_test_misc::cpi::*,
 };
 

@@ -282,22 +282,3 @@ pub fn prefunded_account(address: Pubkey, lamports: u64) -> Account {
     }
 }
 
-const NO_DISC_ACCOUNT_SIZE: usize = 40; // 32 addr + 8 u64 (no discriminator)
-
-/// Build raw data for NoDiscAccount (unsafe_no_disc — no disc prefix).
-pub fn build_no_disc_data(authority: Pubkey, value: u64) -> Vec<u8> {
-    let mut data = vec![0u8; NO_DISC_ACCOUNT_SIZE];
-    data[0..32].copy_from_slice(authority.as_ref());
-    data[32..40].copy_from_slice(&value.to_le_bytes());
-    data
-}
-
-/// Valid NoDiscAccount owned by test-misc program.
-pub fn no_disc_account(address: Pubkey, authority: Pubkey, value: u64) -> Account {
-    raw_account(
-        address,
-        1_000_000,
-        build_no_disc_data(authority, value),
-        quasar_test_misc::ID,
-    )
-}

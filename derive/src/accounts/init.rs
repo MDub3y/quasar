@@ -133,9 +133,8 @@ pub(super) fn gen_init_block(
     let pay = ctx.payer;
 
     // --- ATA init ---
-    if attrs.associated_token_mint.is_some() {
+    if let Some(mint_field) = &attrs.associated_token_mint {
         let ata_prog = ctx.ata_program.unwrap();
-        let mint_field = attrs.associated_token_mint.as_ref().unwrap();
         let auth_field = attrs.associated_token_authority.as_ref().unwrap();
         let sys_field = ctx.system_program;
         let tok_field = attrs
@@ -189,9 +188,8 @@ pub(super) fn gen_init_block(
     }
 
     // --- Token init ---
-    if attrs.token_mint.is_some() {
+    if let Some(mint_field) = &attrs.token_mint {
         let tok_field = ctx.token_program.unwrap();
-        let mint_field = attrs.token_mint.as_ref().unwrap();
         let auth_field = attrs.token_authority.as_ref().unwrap();
 
         let cpi_body = gen_init_cpi_body(
