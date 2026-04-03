@@ -19,7 +19,6 @@ impl<'info> CloseTokenAccount<'info> {
     pub fn handler(&self) -> Result<(), ProgramError> {
         self.token_program
             .close_account(self.account, self.destination, self.authority)
-            .invoke();
-        Ok(())
+            .invoke()
     }
 }

@@ -323,19 +323,19 @@ impl<'a, const ACCTS: usize, const DATA: usize> CpiCall<'a, ACCTS, DATA> {
 
     /// Invoke the CPI without any PDA signers.
     #[inline(always)]
-    pub fn invoke(&self) {
+    pub fn invoke(&self) -> ProgramResult {
         self.invoke_inner(&[])
     }
 
     /// Invoke the CPI with a single PDA signer (seeds for one address).
     #[inline(always)]
-    pub fn invoke_signed(&self, seeds: &[Seed]) {
+    pub fn invoke_signed(&self, seeds: &[Seed]) -> ProgramResult {
         self.invoke_inner(&[Signer::from(seeds)])
     }
 
     /// Invoke the CPI with multiple PDA signers.
     #[inline(always)]
-    pub fn invoke_with_signers(&self, signers: &[Signer]) {
+    pub fn invoke_with_signers(&self, signers: &[Signer]) -> ProgramResult {
         self.invoke_inner(signers)
     }
 
@@ -361,7 +361,7 @@ impl<'a, const ACCTS: usize, const DATA: usize> CpiCall<'a, ACCTS, DATA> {
     }
 
     #[inline(always)]
-    fn invoke_inner(&self, signers: &[Signer]) {
+    fn invoke_inner(&self, signers: &[Signer]) -> ProgramResult {
         // SAFETY: All pointer/length pairs derive from owned fixed-size arrays
         // with const-generic lengths, so they are always valid and in-bounds.
         let result = unsafe {
@@ -376,9 +376,7 @@ impl<'a, const ACCTS: usize, const DATA: usize> CpiCall<'a, ACCTS, DATA> {
                 signers,
             )
         };
-        if result != 0 {
-            crate::abort_program();
-        }
+        result_from_raw(result)
     }
 
     #[inline(always)]

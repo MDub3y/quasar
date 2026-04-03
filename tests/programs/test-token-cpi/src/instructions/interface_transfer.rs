@@ -16,7 +16,6 @@ impl<'info> InterfaceTransfer<'info> {
     pub fn handler(&self, amount: u64) -> Result<(), ProgramError> {
         self.token_program
             .transfer(self.from, self.to, self.authority, amount)
-            .invoke();
-        Ok(())
+            .invoke()
     }
 }

@@ -50,17 +50,17 @@ impl<'a, const ACCTS: usize, const MAX: usize> BufCpiCall<'a, ACCTS, MAX> {
     }
 
     #[inline(always)]
-    pub fn invoke(&self) {
+    pub fn invoke(&self) -> Result<(), ProgramError> {
         self.invoke_inner(&[])
     }
 
     #[inline(always)]
-    pub fn invoke_signed(&self, seeds: &[Seed]) {
+    pub fn invoke_signed(&self, seeds: &[Seed]) -> Result<(), ProgramError> {
         self.invoke_inner(&[Signer::from(seeds)])
     }
 
     #[inline(always)]
-    pub fn invoke_with_signers(&self, signers: &[Signer]) {
+    pub fn invoke_with_signers(&self, signers: &[Signer]) -> Result<(), ProgramError> {
         self.invoke_inner(signers)
     }
 
@@ -83,7 +83,7 @@ impl<'a, const ACCTS: usize, const MAX: usize> BufCpiCall<'a, ACCTS, MAX> {
     }
 
     #[inline(always)]
-    fn invoke_inner(&self, signers: &[Signer]) {
+    fn invoke_inner(&self, signers: &[Signer]) -> Result<(), ProgramError> {
         // SAFETY: All pointer/length pairs derive from owned arrays. `data_len`
         // was validated in `new()`, so `data[..data_len]` is in-bounds.
         let result = unsafe {
@@ -98,9 +98,7 @@ impl<'a, const ACCTS: usize, const MAX: usize> BufCpiCall<'a, ACCTS, MAX> {
                 signers,
             )
         };
-        if result != 0 {
-            crate::abort_program();
-        }
+        result_from_raw(result)
     }
 
     #[inline(always)]

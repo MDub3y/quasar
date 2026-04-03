@@ -13,7 +13,6 @@ impl<'info> TransferTest<'info> {
     pub fn handler(&self, amount: u64) -> Result<(), ProgramError> {
         self.system_program
             .transfer(self.from, self.to, amount)
-            .invoke();
-        Ok(())
+            .invoke()
     }
 }

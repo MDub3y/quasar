@@ -16,7 +16,6 @@ impl<'info> BurnT22<'info> {
     pub fn handler(&self, amount: u64) -> Result<(), ProgramError> {
         self.token_program
             .burn(self.from, self.mint, self.authority, amount)
-            .invoke();
-        Ok(())
+            .invoke()
     }
 }

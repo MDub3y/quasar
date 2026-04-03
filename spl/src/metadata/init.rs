@@ -58,8 +58,7 @@ pub trait InitMetadata: AsAccountView + Sized {
                 is_mutable,
                 true, // update_authority_is_signer
             )?
-            .invoke();
-        Ok(())
+            .invoke()
     }
 
     #[inline(always)]
@@ -96,8 +95,7 @@ pub trait InitMetadata: AsAccountView + Sized {
                 is_mutable,
                 true,
             )?
-            .invoke_signed(seeds);
-        Ok(())
+            .invoke_signed(seeds)
     }
 }
 
@@ -148,8 +146,7 @@ pub trait InitMasterEdition: AsAccountView + Sized {
                 rent,
                 max_supply,
             )
-            .invoke();
-        Ok(())
+            .invoke()
     }
 
     #[inline(always)]
@@ -181,7 +178,6 @@ pub trait InitMasterEdition: AsAccountView + Sized {
                 rent,
                 max_supply,
             )
-            .invoke_signed(seeds);
-        Ok(())
+            .invoke_signed(seeds)
     }
 }

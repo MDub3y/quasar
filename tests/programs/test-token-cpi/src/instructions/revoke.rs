@@ -15,7 +15,6 @@ impl<'info> Revoke<'info> {
     pub fn handler(&self) -> Result<(), ProgramError> {
         self.token_program
             .revoke(self.source, self.authority)
-            .invoke();
-        Ok(())
+            .invoke()
     }
 }

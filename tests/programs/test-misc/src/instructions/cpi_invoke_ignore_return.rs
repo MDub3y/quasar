@@ -16,7 +16,6 @@ impl<'info> CpiInvokeIgnoreReturn<'info> {
             [self.program.to_account_view()],
             [45],
         )
-        .invoke();
-        Ok(())
+        .invoke()
     }
 }

@@ -9,7 +9,6 @@ pub struct AssignTest<'info> {
 impl<'info> AssignTest<'info> {
     #[inline(always)]
     pub fn handler(&self, owner: Address) -> Result<(), ProgramError> {
-        self.system_program.assign(self.account, &owner).invoke();
-        Ok(())
+        self.system_program.assign(self.account, &owner).invoke()
     }
 }
