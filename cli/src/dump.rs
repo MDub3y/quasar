@@ -1,5 +1,9 @@
 use {
-    crate::{config::QuasarConfig, error::CliResult, style, utils},
+    crate::{
+        config::QuasarConfig,
+        error::{CliError, CliResult},
+        style, utils,
+    },
     std::{
         cmp::Ordering,
         path::PathBuf,
@@ -14,26 +18,19 @@ pub fn run(elf_path: Option<PathBuf>, function: Option<String>, source: bool) ->
     };
 
     if !so_path.exists() {
-        eprintln!(
-            "  {}",
-            style::fail(&format!("file not found: {}", so_path.display()))
-        );
-        std::process::exit(1);
+        return Err(CliError::message(format!(
+            "file not found: {}",
+            so_path.display()
+        )));
     }
 
-    let objdump = find_objdump().unwrap_or_else(|| {
-        eprintln!(
-            "  {}",
-            style::fail("llvm-objdump not found in Solana platform-tools.")
-        );
-        eprintln!();
-        eprintln!("  Looked in ~/.cache/solana/*/platform-tools/llvm/bin/");
-        eprintln!(
-            "  Install platform-tools: {}",
-            style::bold("solana-install init")
-        );
-        std::process::exit(1);
-    });
+    let Some(objdump) = find_objdump() else {
+        return Err(CliError::message(
+            "llvm-objdump not found in Solana platform-tools.\n\n  Looked in \
+             ~/.cache/solana/*/platform-tools/llvm/bin/\n  Install platform-tools: solana-install \
+             init",
+        ));
+    };
 
     let mut cmd = Command::new(&objdump);
     cmd.arg("-d") // disassemble
@@ -60,15 +57,13 @@ pub fn run(elf_path: Option<PathBuf>, function: Option<String>, source: bool) ->
 
             if lines.is_empty() || (function.is_some() && lines.len() <= 2) {
                 if let Some(sym) = function {
-                    eprintln!("  {}", style::fail(&format!("symbol not found: {sym}")));
-                    eprintln!(
-                        "  {}",
-                        style::dim("Try a mangled or partial name, e.g. 'entrypoint'")
-                    );
+                    return Err(CliError::message(format!(
+                        "symbol not found: {sym}\n  Try a mangled or partial name, e.g. \
+                         'entrypoint'"
+                    )));
                 } else {
-                    eprintln!("  {}", style::fail("no disassembly output"));
+                    return Err(CliError::message("no disassembly output"));
                 }
-                std::process::exit(1);
             }
 
             // Print with minimal framing
@@ -99,19 +94,20 @@ pub fn run(elf_path: Option<PathBuf>, function: Option<String>, source: bool) ->
         }
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
-            eprintln!("  {}", style::fail("llvm-objdump failed"));
-            if !stderr.trim().is_empty() {
-                eprintln!("  {}", stderr.trim());
-            }
-            std::process::exit(1);
+            let message = if stderr.trim().is_empty() {
+                "llvm-objdump failed".to_string()
+            } else {
+                format!("llvm-objdump failed\n{}", stderr.trim())
+            };
+            Err(CliError::process_failure(
+                message,
+                o.status.code().unwrap_or(1),
+            ))
         }
-        Err(e) => {
-            eprintln!(
-                "  {}",
-                style::fail(&format!("failed to run {}: {e}", objdump.display()))
-            );
-            std::process::exit(1);
-        }
+        Err(e) => Err(CliError::message(format!(
+            "failed to run {}: {e}",
+            objdump.display()
+        ))),
     }
 }
 
@@ -119,17 +115,10 @@ fn find_so() -> Result<PathBuf, crate::error::CliError> {
     let config = QuasarConfig::load()?;
     match utils::find_so(&config, true) {
         Some(p) => Ok(p),
-        None => {
-            eprintln!(
-                "  {}",
-                style::fail("no .so found in target/deploy/ or target/profile/")
-            );
-            eprintln!(
-                "  {}",
-                style::dim("Run `quasar build` first or pass a path: `quasar dump <path>`")
-            );
-            std::process::exit(1);
-        }
+        None => Err(CliError::message(
+            "no .so found in target/deploy/ or target/profile/\n  Run `quasar build` first or \
+             pass a path: `quasar dump <path>`",
+        )),
     }
 }
 
