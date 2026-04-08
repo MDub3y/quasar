@@ -365,8 +365,10 @@ fn extract_seed_account_refs(seeds_directive: &str) -> Vec<String> {
 
 /// Extract account references from a `seeds = Type::seeds(arg1, arg2)` directive.
 /// Returns None if the directive is not in typed-seeds format.
+///
+/// Handles syn's token spacing where `Type::seeds(` may appear as
+/// `Type :: seeds (` — the `find("::")` and `.trim()` calls normalize this.
 fn extract_typed_seed_refs(seeds_directive: &str) -> Option<Vec<String>> {
-    // Look for `:: seeds (` pattern (syn may insert spaces around `::`)
     let eq_pos = seeds_directive.find('=')?;
     let after_eq = seeds_directive[eq_pos + 1..].trim();
 
@@ -549,5 +551,18 @@ mod tests {
         let ty: syn::Type = syn::parse_str("UncheckedAccount").unwrap();
         let (class, _) = classify_field_type(&ty);
         assert_eq!(class, FieldClass::Unchecked);
+    }
+
+    #[test]
+    fn extract_typed_seed_refs_spaced() {
+        // syn may produce `Type :: seeds (` with spaces around `::`
+        let refs = extract_typed_seed_refs("seeds = Vault :: seeds ( authority , index )");
+        assert_eq!(refs, Some(vec!["authority".to_string(), "index".to_string()]));
+    }
+
+    #[test]
+    fn extract_typed_seed_refs_compact() {
+        let refs = extract_typed_seed_refs("seeds = Vault::seeds(authority, index)");
+        assert_eq!(refs, Some(vec!["authority".to_string(), "index".to_string()]));
     }
 }
