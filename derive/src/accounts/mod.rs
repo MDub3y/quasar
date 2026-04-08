@@ -52,7 +52,7 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
 
     let instruction_args = parse_struct_instruction_args(&input);
 
-    let mut pf = match fields::process_fields(fields, &field_name_strings, &instruction_args) {
+    let mut pf = match fields::process_fields(fields, &field_name_strings, &instruction_args, &bumps_name) {
         Ok(pf) => pf,
         Err(ts) => return ts,
     };
@@ -492,7 +492,7 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
         quote! {}
     } else {
         quote! {
-            impl #bumps_name {
+            impl<'info> #name<'info> {
                 #(#seeds_methods)*
             }
         }

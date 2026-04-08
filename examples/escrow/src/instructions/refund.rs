@@ -26,7 +26,7 @@ pub struct Refund<'info> {
 impl<'info> Refund<'info> {
     #[inline(always)]
     pub fn withdraw_tokens_and_close(&mut self, bumps: &RefundBumps) -> Result<(), ProgramError> {
-        let seeds = bumps.escrow_seeds();
+        let seeds = self.escrow_seeds(bumps);
 
         self.token_program
             .transfer(

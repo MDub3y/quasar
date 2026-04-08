@@ -206,6 +206,7 @@ pub(crate) fn process_fields(
     fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>,
     field_name_strings: &[String],
     instruction_args: &Option<Vec<InstructionArg>>,
+    bumps_name: &Ident,
 ) -> Result<ProcessedFields, proc_macro::TokenStream> {
     let field_attrs: Vec<AccountFieldAttrs> = fields
         .iter()
@@ -900,17 +901,9 @@ pub(crate) fn process_fields(
                     if ep.qself.is_none() && ep.path.segments.len() == 1 {
                         let ident = &ep.path.segments[0].ident;
                         if field_name_strings.contains(&ident.to_string()) {
-                            let addr_field = format_ident!("__seed_{}_{}", field_name, ident);
-                            let capture_var = format_ident!("__seed_addr_{}_{}", field_name, ident);
-
-                            seed_addr_captures.push(quote! {
-                                let #capture_var = *#ident.address();
-                            });
-                            bump_struct_fields.push(quote! { #addr_field: Address });
-                            bump_struct_inits.push(quote! { #addr_field: #capture_var });
-
+                            // Account key — live reference via the Accounts struct
                             seed_elements.push(
-                                quote! { quasar_lang::cpi::Seed::from(self.#addr_field.as_ref()) },
+                                quote! { quasar_lang::cpi::Seed::from(self.#ident.to_account_view().address().as_ref()) },
                             );
                             continue;
                         }
@@ -920,11 +913,11 @@ pub(crate) fn process_fields(
             }
 
             seed_elements
-                .push(quote! { quasar_lang::cpi::Seed::from(&self.#bump_arr_field as &[u8]) });
+                .push(quote! { quasar_lang::cpi::Seed::from(&bumps.#bump_arr_field as &[u8]) });
 
             seeds_methods.push(quote! {
                 #[inline(always)]
-                pub fn #method_name(&self) -> [quasar_lang::cpi::Seed<'_>; #seed_count] {
+                pub fn #method_name<'a>(&'a self, bumps: &'a #bumps_name) -> [quasar_lang::cpi::Seed<'a>; #seed_count] {
                     [#(#seed_elements),*]
                 }
             });
@@ -1029,7 +1022,9 @@ pub(crate) fn process_fields(
             )?;
             target_checks.push(check);
 
-            // CPI seed method
+            // CPI seed method — generated on the Accounts struct with a
+            // bumps parameter. Account keys are referenced live via self,
+            // ix arg captures via bumps.
             let method_name = format_ident!("{}_seeds", field_name);
             // prefix + dynamic args + bump
             let total_seed_count = typed.args.len() + 2;
@@ -1041,30 +1036,21 @@ pub(crate) fn process_fields(
                 quote! { quasar_lang::cpi::Seed::from(<#type_path as quasar_lang::traits::HasSeeds>::SEED_PREFIX) },
             );
 
-            // Dynamic seed elements — capture values for CPI
+            // Dynamic seed elements — live references for CPI
             for arg in &typed.args {
                 if let Expr::Path(ep) = arg {
                     if ep.qself.is_none() && ep.path.segments.len() == 1 {
                         let ident = &ep.path.segments[0].ident;
                         if field_name_strings.contains(&ident.to_string()) {
-                            // Account key reference — capture address
-                            let addr_field =
-                                format_ident!("__seed_{}_{}", field_name, ident);
-                            let capture_var =
-                                format_ident!("__seed_addr_{}_{}", field_name, ident);
-                            seed_addr_captures
-                                .push(quote! { let #capture_var = *#ident.address(); });
-                            bump_struct_fields.push(quote! { #addr_field: Address });
-                            bump_struct_inits
-                                .push(quote! { #addr_field: #capture_var });
+                            // Account key — live reference via Accounts struct
                             seed_elements.push(
-                                quote! { quasar_lang::cpi::Seed::from(self.#addr_field.as_ref()) },
+                                quote! { quasar_lang::cpi::Seed::from(self.#ident.to_account_view().address().as_ref()) },
                             );
                             continue;
                         }
                     }
                 }
-                // Check if this is an instruction arg we can capture in Bumps.
+                // Check if this is an instruction arg captured in Bumps.
                 let mut captured = false;
                 if let Expr::Path(ep) = arg {
                     if ep.qself.is_none() && ep.path.segments.len() == 1 {
@@ -1107,8 +1093,9 @@ pub(crate) fn process_fields(
                                 }
                                 bump_struct_inits
                                     .push(quote! { #ix_bytes_field: #capture_var });
+                                // Reference ix arg bytes via bumps parameter
                                 seed_elements.push(
-                                    quote! { quasar_lang::cpi::Seed::from(&self.#ix_bytes_field as &[u8]) },
+                                    quote! { quasar_lang::cpi::Seed::from(&bumps.#ix_bytes_field as &[u8]) },
                                 );
                                 captured = true;
                             }
@@ -1128,25 +1115,19 @@ pub(crate) fn process_fields(
                 }
             }
 
-            // Bump seed element
+            // Bump seed element — reference via bumps parameter
             seed_elements.push(
-                quote! { quasar_lang::cpi::Seed::from(&self.#bump_arr_field as &[u8]) },
+                quote! { quasar_lang::cpi::Seed::from(&bumps.#bump_arr_field as &[u8]) },
             );
 
             // Only generate the CPI seed method when all seed components
-            // are captured in the Bumps struct. Field access expressions
-            // (e.g. config.namespace) are not capturable because the typed
-            // fields aren't available at Bumps-construction time.
-            //
-            // When `has_uncapturable_seeds` is true, the `<field>_seeds()`
-            // method is intentionally NOT generated. Users must manually
-            // reconstruct signer seeds for CPI when field-access seeds are
-            // used. PDA verification still works — only the CPI convenience
-            // method is omitted.
+            // are resolvable from the Accounts struct and Bumps. Field access
+            // expressions (e.g. config.namespace) are not yet supported in
+            // CPI seed methods.
             if !has_uncapturable_seeds {
                 seeds_methods.push(quote! {
                     #[inline(always)]
-                    pub fn #method_name(&self) -> [quasar_lang::cpi::Seed<'_>; #total_seed_count] {
+                    pub fn #method_name<'a>(&'a self, bumps: &'a #bumps_name) -> [quasar_lang::cpi::Seed<'a>; #total_seed_count] {
                         [#(#seed_elements),*]
                     }
                 });
