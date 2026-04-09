@@ -162,7 +162,8 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
                 //
                 // Uses mask-based minimum-requirements flag checks so that
                 // extra permissions are silently accepted.
-                let effective_ty = extract_generic_inner_type(&field.ty, "Option").unwrap_or(&field.ty);
+                let effective_ty =
+                    extract_generic_inner_type(&field.ty, "Option").unwrap_or(&field.ty);
                 let stripped = field_kind::strip_ref(effective_ty);
                 let kind = field_kind::FieldKind::classify(stripped);
                 let flags = field_kind::FieldFlags::compute(&kind, attrs, is_ref_mut);
