@@ -172,36 +172,42 @@ impl<'a, const MAX_ACCTS: usize, const MAX_DATA: usize> DynCpiCall<'a, MAX_ACCTS
 
     /// Invoke the CPI without any PDA signers.
     #[inline(always)]
+    #[must_use = "CPI result must be handled with `?` or matched"]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_inner(&[])
     }
 
     /// Invoke the CPI with a single PDA signer (seeds for one address).
     #[inline(always)]
+    #[must_use = "CPI result must be handled with `?` or matched"]
     pub fn invoke_signed(&self, seeds: &[Seed]) -> ProgramResult {
         self.invoke_inner(&[Signer::from(seeds)])
     }
 
     /// Invoke the CPI with multiple PDA signers.
     #[inline(always)]
+    #[must_use = "CPI result must be handled with `?` or matched"]
     pub fn invoke_with_signers(&self, signers: &[Signer]) -> ProgramResult {
         self.invoke_inner(signers)
     }
 
     /// Invoke the CPI and read back raw return data.
     #[inline(always)]
+    #[must_use = "CPI result must be handled with `?` or matched"]
     pub fn invoke_with_return(&self) -> Result<CpiReturn, ProgramError> {
         self.invoke_with_return_inner(&[])
     }
 
     /// Invoke the CPI with one PDA signer and read back raw return data.
     #[inline(always)]
+    #[must_use = "CPI result must be handled with `?` or matched"]
     pub fn invoke_signed_with_return(&self, seeds: &[Seed]) -> Result<CpiReturn, ProgramError> {
         self.invoke_with_return_inner(&[Signer::from(seeds)])
     }
 
     /// Invoke the CPI with multiple PDA signers and read back raw return data.
     #[inline(always)]
+    #[must_use = "CPI result must be handled with `?` or matched"]
     pub fn invoke_with_signers_with_return(
         &self,
         signers: &[Signer],
