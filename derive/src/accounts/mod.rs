@@ -603,10 +603,10 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
                         if __sweep_amount > 0 {
                             let __sweep_decimals = self.#mint.decimals();
                             self.#tp.transfer_checked(
-                                self.#field,
-                                self.#mint,
-                                self.#receiver,
-                                self.#auth,
+                                &self.#field,
+                                &self.#mint,
+                                &self.#receiver,
+                                &self.#auth,
                                 __sweep_amount,
                                 __sweep_decimals,
                             ).invoke()?;
@@ -630,7 +630,7 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
                     quote! {
                         {
                             use quasar_spl::TokenCpi as _;
-                            self.#tp.close_account(self.#field, self.#dest, self.#auth).invoke()?;
+                            self.#tp.close_account(&self.#field, &self.#dest, &self.#auth).invoke()?;
                         }
                     }
                 } else {
