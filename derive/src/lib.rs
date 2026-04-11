@@ -176,7 +176,7 @@ pub fn error_code(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn emit_cpi(input: TokenStream) -> TokenStream {
     let input = proc_macro2::TokenStream::from(input);
     quote::quote! {
-        self.program.emit_event(&#input, self.event_authority, crate::EventAuthority::BUMP)
+        self.program.emit_event(&#input, &self.event_authority, crate::EventAuthority::BUMP)
     }
     .into()
 }

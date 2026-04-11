@@ -45,8 +45,9 @@ impl AccountBuffer {
 }
 
 #[derive(Accounts)]
-struct OnlySigner<'info> {
-    signer: &'info mut Signer,
+struct OnlySigner {
+    #[account(mut)]
+    signer: Signer,
 }
 
 #[test]
