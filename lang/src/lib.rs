@@ -97,9 +97,6 @@ pub mod client;
 pub mod context;
 /// Const-generic cross-program invocation with stack-allocated account arrays.
 pub mod cpi;
-/// Marker types for dynamic fields (`String<P, N>`, `Vec<T, P, N>`) and codec
-/// helpers.
-pub mod dynamic;
 /// Program entrypoint macros (`dispatch!`, `no_alloc!`, `panic_handler!`).
 pub mod entrypoint;
 /// Framework error types.
@@ -117,7 +114,8 @@ pub mod log;
 pub mod pda;
 /// Alignment-1 Pod integer types (re-exported from `quasar-pod`).
 pub mod pod;
-/// Convenience re-exports for program code.
+/// Marker types for dynamic fields (`String<N>`, `Vec<T, N>`) and codec
+/// helpers.
 pub mod prelude;
 /// Zero-allocation remaining accounts iterator.
 pub mod remaining;
