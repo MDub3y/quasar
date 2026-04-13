@@ -285,7 +285,8 @@ fn map_type_defined() {
 
 #[test]
 fn map_type_from_syn_string_with_lifetime() {
-    // String<'a, 32> must parse the same as String<32>: DynString with 32 max, u8 prefix.
+    // String<'a, 32> must parse the same as String<32>: DynString with 32 max, u8
+    // prefix.
     let ty: syn::Type = syn::parse_str("String<'a, 32>").unwrap();
     assert!(
         matches!(
@@ -298,7 +299,8 @@ fn map_type_from_syn_string_with_lifetime() {
 
 #[test]
 fn map_type_from_syn_vec_with_lifetime() {
-    // Vec<'a, u64, 10> must parse the same as Vec<u64, 10>: DynVec<u64> with 10 max, u16 prefix.
+    // Vec<'a, u64, 10> must parse the same as Vec<u64, 10>: DynVec<u64> with 10
+    // max, u16 prefix.
     let ty: syn::Type = syn::parse_str("Vec<'a, u64, 10>").unwrap();
     assert!(
         matches!(
@@ -1162,11 +1164,20 @@ fn rust_codegen_cargo_toml() {
     assert!(toml.contains("name = \"my-program-client\""), "{toml}");
     assert!(toml.contains("version = \"0.1.0\""), "{toml}");
     // Git dep so source-build users get a quasar-lang that matches their CLI.
-    assert!(toml.contains("blueshift-gg/quasar"), "quasar-lang must be a git dep: {toml}");
+    assert!(
+        toml.contains("blueshift-gg/quasar"),
+        "quasar-lang must be a git dep: {toml}"
+    );
     // Exact-pinned to avoid the wincode 0.4/0.5 split (solana-address >= 2.3
     // depends on wincode 0.5, which conflicts with the quasar-lang 0.4 binding).
-    assert!(toml.contains("=0.4.9"), "wincode must be exact-pinned: {toml}");
-    assert!(toml.contains("=2.2.0"), "solana-address must be exact-pinned: {toml}");
+    assert!(
+        toml.contains("=0.4.9"),
+        "wincode must be exact-pinned: {toml}"
+    );
+    assert!(
+        toml.contains("=2.2.0"),
+        "solana-address must be exact-pinned: {toml}"
+    );
 }
 
 // ---------------------------------------------------------------------------

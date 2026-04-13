@@ -1,7 +1,9 @@
 use {
     crate::types::{Idl, IdlAccountItem, IdlField, IdlSeed, IdlType},
-    std::collections::{HashMap, HashSet},
-    std::fmt::Write,
+    std::{
+        collections::{HashMap, HashSet},
+        fmt::Write,
+    },
 };
 
 /// Generate Cargo.toml content for the standalone client crate.
@@ -443,7 +445,8 @@ fn emit_single_instruction(
         for arg in &ix.args {
             writeln!(
                 out,
-                "        wincode::serialize_into(&mut data, &ix.{}).expect(\"serialization into Vec<u8> is infallible\");",
+                "        wincode::serialize_into(&mut data, &ix.{}).expect(\"serialization into \
+                 Vec<u8> is infallible\");",
                 camel_to_snake(&arg.name)
             )
             .expect("write to String");
