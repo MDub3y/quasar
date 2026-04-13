@@ -24,6 +24,9 @@ const MAX_PDA_SLICES: usize = 19;
 /// "ProgramDerivedAddress")`.
 ///
 /// The seeds slice must already include the bump byte.
+// NOTE: Uses `#[inline]` rather than `#[inline(always)]` deliberately —
+// these functions are large enough that forced inlining at every callsite
+// risks .so bloat. Benchmark `#[inline(always)]` if CU regression appears.
 #[inline]
 pub fn verify_program_address(
     seeds: &[&[u8]],
@@ -130,8 +133,13 @@ pub fn based_try_find_program_address(
         // The bump slot points into bump_arr — only the byte changes per iteration.
         let mut bump_arr = [u8::MAX];
         let bump_ptr = bump_arr.as_mut_ptr();
-        // SAFETY: `sptr.add(n)` is within bounds. The slice wraps `bump_arr`
-        // which lives for the duration of this function.
+        // SAFETY: `sptr.add(n)` is within bounds. The `&[u8]` slice stored
+        // here points to `bump_arr` but is NEVER read through Rust code —
+        // it is only consumed by `sol_sha256` as a raw `(*const u8, u64)`
+        // pair (SolBytes). The subsequent mutation of `bump_arr` via
+        // `bump_ptr.write()` is invisible to any Rust reference. This relies
+        // on the SBF ABI layout equivalence between `&[u8]` and `SolBytes`,
+        // which is validated by the module-level documentation.
         unsafe { sptr.add(n).write(core::slice::from_raw_parts(bump_ptr, 1)) };
 
         // SAFETY: All `n + 3` elements initialized above.
@@ -257,8 +265,13 @@ pub fn find_bump_for_address(
         // The bump slot points into bump_arr — only the byte changes per iteration.
         let mut bump_arr = [u8::MAX];
         let bump_ptr = bump_arr.as_mut_ptr();
-        // SAFETY: `sptr.add(n)` is within bounds. The slice wraps `bump_arr`
-        // which lives for the duration of this function.
+        // SAFETY: `sptr.add(n)` is within bounds. The `&[u8]` slice stored
+        // here points to `bump_arr` but is NEVER read through Rust code —
+        // it is only consumed by `sol_sha256` as a raw `(*const u8, u64)`
+        // pair (SolBytes). The subsequent mutation of `bump_arr` via
+        // `bump_ptr.write()` is invisible to any Rust reference. This relies
+        // on the SBF ABI layout equivalence between `&[u8]` and `SolBytes`,
+        // which is validated by the module-level documentation.
         unsafe { sptr.add(n).write(core::slice::from_raw_parts(bump_ptr, 1)) };
 
         // SAFETY: All `n + 3` elements initialized above.
