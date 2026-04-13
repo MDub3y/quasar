@@ -46,14 +46,7 @@ pub(super) fn generate_instruction_arg_extraction(
 
     let mut pod_dyns: Vec<Option<PodDynField>> = Vec::with_capacity(ix_args.len());
     for arg in ix_args {
-        let pd = if let Some(pd) = classify_pod_string(&arg.ty) {
-            Some(pd)
-        } else if let Some(pd) = classify_pod_vec(&arg.ty) {
-            Some(pd)
-        } else {
-            None
-        };
-        pod_dyns.push(pd);
+        pod_dyns.push(classify_pod_string(&arg.ty).or_else(|| classify_pod_vec(&arg.ty)));
     }
 
     let has_dynamic = pod_dyns.iter().any(|pd| pd.is_some());

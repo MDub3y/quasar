@@ -75,12 +75,8 @@ pub(crate) fn account(attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|f| {
             let pod_dyn = if args.fixed_capacity {
                 None // fixed_capacity: everything goes in the ZC struct
-            } else if let Some(pd) = classify_pod_string(&f.ty) {
-                Some(pd)
-            } else if let Some(pd) = classify_pod_vec(&f.ty) {
-                Some(pd)
             } else {
-                None
+                classify_pod_string(&f.ty).or_else(|| classify_pod_vec(&f.ty))
             };
             fixed::PodFieldInfo { field: f, pod_dyn }
         })
