@@ -322,10 +322,8 @@ pub(crate) fn zc_assign_from_value(field_name: &Ident, ty: &Type) -> proc_macro2
 fn pod_alias_type(ty: &Type, accept_pod_aliases: bool) -> Option<proc_macro2::TokenStream> {
     if let Type::Path(type_path) = ty {
         if let Some(seg) = type_path.path.segments.last() {
-            let is_string = (seg.ident == "String" || seg.ident == "PodString")
-                && (accept_pod_aliases || seg.ident == "String");
-            let is_vec = (seg.ident == "Vec" || seg.ident == "PodVec")
-                && (accept_pod_aliases || seg.ident == "Vec");
+            let is_string = seg.ident == "String" || seg.ident == "PodString" && accept_pod_aliases;
+            let is_vec = seg.ident == "Vec" || seg.ident == "PodVec" && accept_pod_aliases;
 
             if is_string {
                 if let PathArguments::AngleBracketed(ab) = &seg.arguments {

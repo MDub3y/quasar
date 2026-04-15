@@ -264,7 +264,7 @@ enum FieldKind {
     Str { max_n: usize, pfx: usize },
     /// `&'a [T]` — decoded with `read_dynamic_vec`. Requires `#[max(N)]`.
     Slice {
-        elem: Type,
+        elem: Box<Type>,
         max_n: usize,
         pfx: usize,
     },
@@ -353,7 +353,7 @@ fn classify_field(field: &Field) -> Result<FieldKind, syn::Error> {
         } else {
             let pfx = if pfx_override == 0 { 2 } else { pfx_override };
             Ok(FieldKind::Slice {
-                elem: slice_elem.unwrap(),
+                elem: Box::new(slice_elem.unwrap()),
                 max_n,
                 pfx,
             })

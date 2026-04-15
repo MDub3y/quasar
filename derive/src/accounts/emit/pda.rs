@@ -17,6 +17,15 @@ pub(super) enum PdaBareMode {
     DeriveExpected,
 }
 
+pub(super) struct PdaBumpAssignment<'a> {
+    pub bump_var: &'a syn::Ident,
+    pub addr_expr: &'a proc_macro2::TokenStream,
+    pub seed_array_name: &'a syn::Ident,
+    pub explicit_bump_name: &'a syn::Ident,
+    pub bare_mode: PdaBareMode,
+    pub log_failure: bool,
+}
+
 pub(super) fn emit_seed_bindings(
     field: &syn::Ident,
     pda: &PdaConstraint,
@@ -59,13 +68,17 @@ pub(super) fn emit_pda_bump_assignment(
     field: &syn::Ident,
     pda: &PdaConstraint,
     seed_idents: &[syn::Ident],
-    bump_var: &syn::Ident,
-    addr_expr: &proc_macro2::TokenStream,
-    seed_array_name: &syn::Ident,
-    explicit_bump_name: &syn::Ident,
-    bare_mode: PdaBareMode,
-    log_failure: bool,
+    assignment: PdaBumpAssignment<'_>,
 ) -> proc_macro2::TokenStream {
+    let PdaBumpAssignment {
+        bump_var,
+        addr_expr,
+        seed_array_name,
+        explicit_bump_name,
+        bare_mode,
+        log_failure,
+    } = assignment;
+
     match &pda.bump {
         Some(BumpSyntax::Explicit(expr)) => {
             let failure = emit_failure_log(field, log_failure);

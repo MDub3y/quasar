@@ -112,12 +112,14 @@ fn emit_pda_check(
         field,
         pda,
         &bindings.seed_idents,
-        &bump_var,
-        &addr_access,
-        &seed_array_name,
-        &explicit_bump_name,
-        super::pda::PdaBareMode::KnownAddress,
-        true,
+        super::pda::PdaBumpAssignment {
+            bump_var: &bump_var,
+            addr_expr: &addr_access,
+            seed_array_name: &seed_array_name,
+            explicit_bump_name: &explicit_bump_name,
+            bare_mode: super::pda::PdaBareMode::KnownAddress,
+            log_failure: true,
+        },
     );
 
     quote! {

@@ -72,32 +72,28 @@ fn build_accounts_index(semantics: &[FieldSemantics]) -> AccountsIndex {
             FieldShape::Program { .. } => {
                 if let Some(name) = sem.core.shape.inner_base_name() {
                     match name.to_string().as_str() {
-                        "System" => {
-                            if system_program.is_none() {
-                                system_program = Some(ident.clone());
-                            }
+                        "System" if system_program.is_none() => {
+                            system_program = Some(ident.clone())
                         }
                         "Token" | "Token2022" => {
                             token_program_candidates.push(ident.clone());
                         }
-                        "AssociatedTokenProgram" => {
-                            if associated_token_program.is_none() {
-                                associated_token_program = Some(ident.clone());
-                            }
+                        "AssociatedTokenProgram" if associated_token_program.is_none() => {
+                            associated_token_program = Some(ident.clone());
                         }
                         _ => {}
                     }
                 }
             }
-            FieldShape::Interface { .. } => {
-                if sem.core.shape.inner_name_matches(&["TokenInterface"]) {
-                    token_program_candidates.push(ident.clone());
-                }
+            FieldShape::Interface { .. }
+                if sem.core.shape.inner_name_matches(&["TokenInterface"]) =>
+            {
+                token_program_candidates.push(ident.clone());
             }
-            FieldShape::Sysvar { .. } => {
-                if sem.core.shape.inner_name_matches(&["Rent"]) && rent_sysvar.is_none() {
-                    rent_sysvar = Some(ident.clone());
-                }
+            FieldShape::Sysvar { .. }
+                if sem.core.shape.inner_name_matches(&["Rent"]) && rent_sysvar.is_none() =>
+            {
+                rent_sysvar = Some(ident.clone());
             }
             FieldShape::Account { .. } | FieldShape::InterfaceAccount { .. } => {}
             FieldShape::Composite => {}

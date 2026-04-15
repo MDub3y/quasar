@@ -110,40 +110,38 @@ pub(crate) fn render_seed_expr(
     node: &SeedEmitNode,
     ctx: SeedRenderContext,
 ) -> proc_macro2::TokenStream {
-    match ctx {
-        _ => match node {
-            SeedEmitNode::Literal(bytes) => {
-                render_literal_seed(bytes, !matches!(ctx, SeedRenderContext::Parse))
-            }
-            SeedEmitNode::TypePrefix(type_path) => render_type_prefix(type_path),
-            SeedEmitNode::AccountAddress(expr) => render_account_address(expr, ctx),
-            SeedEmitNode::FieldBytes {
-                expr,
-                root_ident,
-                inner_ty,
-                wrapper_kind,
-            } => render_field_bytes(
-                expr,
-                root_ident,
-                inner_ty.as_ref(),
-                wrapper_kind.as_ref(),
-                ctx,
-            ),
-            SeedEmitNode::FieldRootedExpr {
-                expr,
-                root_ident,
-                inner_ty,
-                wrapper_kind,
-            } => render_field_rooted_expr(
-                expr,
-                root_ident,
-                inner_ty.as_ref(),
-                wrapper_kind.as_ref(),
-                ctx,
-            ),
-            SeedEmitNode::InstructionArg { expr, ty } => emit_instruction_arg_seed_bytes(expr, ty),
-            SeedEmitNode::OpaqueExpr(expr) => render_expr_as_bytes(expr, ctx),
-        },
+    match node {
+        SeedEmitNode::Literal(bytes) => {
+            render_literal_seed(bytes, !matches!(ctx, SeedRenderContext::Parse))
+        }
+        SeedEmitNode::TypePrefix(type_path) => render_type_prefix(type_path),
+        SeedEmitNode::AccountAddress(expr) => render_account_address(expr, ctx),
+        SeedEmitNode::FieldBytes {
+            expr,
+            root_ident,
+            inner_ty,
+            wrapper_kind,
+        } => render_field_bytes(
+            expr,
+            root_ident,
+            inner_ty.as_ref(),
+            wrapper_kind.as_ref(),
+            ctx,
+        ),
+        SeedEmitNode::FieldRootedExpr {
+            expr,
+            root_ident,
+            inner_ty,
+            wrapper_kind,
+        } => render_field_rooted_expr(
+            expr,
+            root_ident,
+            inner_ty.as_ref(),
+            wrapper_kind.as_ref(),
+            ctx,
+        ),
+        SeedEmitNode::InstructionArg { expr, ty } => emit_instruction_arg_seed_bytes(expr, ty),
+        SeedEmitNode::OpaqueExpr(expr) => render_expr_as_bytes(expr, ctx),
     }
 }
 

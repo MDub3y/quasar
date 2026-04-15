@@ -103,12 +103,14 @@ fn emit_signers(
         field,
         pda,
         &seed_idents,
-        &bump_var,
-        &quote! { #field.address() },
-        &seed_array_name,
-        &explicit_bump_name,
-        super::pda::PdaBareMode::DeriveExpected,
-        false,
+        super::pda::PdaBumpAssignment {
+            bump_var: &bump_var,
+            addr_expr: &quote! { #field.address() },
+            seed_array_name: &seed_array_name,
+            explicit_bump_name: &explicit_bump_name,
+            bare_mode: super::pda::PdaBareMode::DeriveExpected,
+            log_failure: false,
+        },
     );
 
     (
