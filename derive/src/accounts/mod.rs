@@ -49,6 +49,9 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
             .into();
     }
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let impl_generics_ts = quote! { #impl_generics };
+    let ty_generics_ts = quote! { #ty_generics };
+    let where_clause_ts = quote! { #where_clause };
 
     let mut parse_generics = input.generics.clone();
     // 'input is the default lifetime used for account references in the generated
@@ -67,6 +70,8 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
     // These generics are used for the ParseAccounts impl, which may have different
     // lifetime requirements than the original struct.
     let (parse_impl_generics, _, parse_where_clause) = parse_generics.split_for_impl();
+    let parse_impl_generics_ts = quote! { #parse_impl_generics };
+    let parse_where_clause_ts = quote! { #parse_where_clause };
 
     let fields = match &input.data {
         Data::Struct(data) => match &data.fields {
@@ -122,16 +127,6 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
     // --- Seeds impl ---
 
     let seeds_methods = emit::emit_seed_methods(&semantics, &emit_cx);
-    let seeds_impl = if seeds_methods.is_empty() {
-        quote! {}
-    } else {
-        quote! {
-            impl #impl_generics #name #ty_generics #where_clause {
-                #seeds_methods
-            }
-        }
-    };
-
     // --- Client macro ---
 
     let descriptors = descriptors::describe_accounts(&semantics);
@@ -145,104 +140,22 @@ pub(crate) fn derive_accounts(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    // --- Final output ---
-
-    let exact_len_guard = quote! {
-        quasar_lang::traits::check_account_count(accounts.len(), Self::COUNT)?;
-    };
-
-    let parse_accounts_impl = quote! {
-        impl #parse_impl_generics ParseAccounts<'input> for #name #ty_generics #parse_where_clause {
-            type Bumps = #bumps_name;
-
-            #[inline(always)]
-            fn parse(accounts: &'input mut [AccountView], program_id: &Address) -> Result<(Self, Self::Bumps), ProgramError> {
-                #exact_len_guard
-                unsafe {
-                    <Self as quasar_lang::traits::ParseAccountsUnchecked>::parse_with_instruction_data_unchecked(
-                        accounts,
-                        &[],
-                        program_id,
-                    )
-                }
-            }
-
-            #[inline(always)]
-            fn parse_with_instruction_data(
-                accounts: &'input mut [AccountView],
-                __ix_data: &[u8],
-                __program_id: &Address,
-            ) -> Result<(Self, Self::Bumps), ProgramError> {
-                #exact_len_guard
-                unsafe {
-                    <Self as quasar_lang::traits::ParseAccountsUnchecked>::parse_with_instruction_data_unchecked(
-                        accounts,
-                        __ix_data,
-                        __program_id,
-                    )
-                }
-            }
-
-            #epilogue_method
-        }
-
-        unsafe impl #parse_impl_generics quasar_lang::traits::ParseAccountsUnchecked<'input>
-            for #name #ty_generics
-            #parse_where_clause
-        {
-            #[inline(always)]
-            unsafe fn parse_unchecked(
-                accounts: &'input mut [AccountView],
-                program_id: &Address,
-            ) -> Result<(Self, Self::Bumps), ProgramError> {
-                <Self as quasar_lang::traits::ParseAccountsUnchecked>::parse_with_instruction_data_unchecked(
-                    accounts,
-                    &[],
-                    program_id,
-                )
-            }
-
-            #[inline(always)]
-            unsafe fn parse_with_instruction_data_unchecked(
-                accounts: &'input mut [AccountView],
-                __ix_data: &[u8],
-                __program_id: &Address,
-            ) -> Result<(Self, Self::Bumps), ProgramError> {
-                #typed_seed_asserts
-                #ix_arg_extraction
-                #parse_body
-            }
-        }
-    };
-
-    let expanded = quote! {
-        #bumps_struct
-
-        #parse_accounts_impl
-
-        #seeds_impl
-
-        impl #impl_generics AccountCount for #name #ty_generics #where_clause {
-            const COUNT: usize = #count_expr;
-        }
-
-        impl #impl_generics #name #ty_generics #where_clause {
-            #[inline(always)]
-            pub unsafe fn parse_accounts(
-                mut input: *mut u8,
-                buf: &mut core::mem::MaybeUninit<[quasar_lang::__internal::AccountView; #count_expr]>,
-                __program_id: &quasar_lang::prelude::Address,
-            ) -> Result<*mut u8, ProgramError> {
-                let base = buf.as_mut_ptr() as *mut quasar_lang::__internal::AccountView;
-
-                #(#parse_steps)*
-
-                Ok(input)
-            }
-        }
-
-        #client_macro
-    };
-
-    TokenStream::from(expanded)
+    TokenStream::from(emit::emit_accounts_output(emit::AccountsOutput {
+        name,
+        bumps_name: &bumps_name,
+        impl_generics: impl_generics_ts,
+        ty_generics: ty_generics_ts,
+        where_clause: where_clause_ts,
+        parse_impl_generics: parse_impl_generics_ts,
+        parse_where_clause: parse_where_clause_ts,
+        count_expr,
+        parse_steps,
+        typed_seed_asserts,
+        parse_body,
+        bumps_struct,
+        epilogue_method,
+        seeds_methods,
+        client_macro,
+        ix_arg_extraction,
+    }))
 }

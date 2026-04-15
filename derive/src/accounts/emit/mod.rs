@@ -3,6 +3,7 @@
 mod bumps;
 mod checks;
 mod construct;
+mod derive_impl;
 mod init;
 mod lifecycle;
 mod pda;
@@ -14,6 +15,8 @@ use {super::semantics::FieldSemantics, quote::quote};
 pub(crate) struct EmitCx {
     pub bumps_name: syn::Ident,
 }
+
+pub(crate) use derive_impl::{emit_accounts_output, AccountsOutput};
 
 pub(crate) fn emit_parse_body(
     semantics: &[FieldSemantics],
